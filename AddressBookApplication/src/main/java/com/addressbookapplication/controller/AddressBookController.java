@@ -1,68 +1,58 @@
 package com.addressbookapplication.controller;
 
+import com.addressbookapplication.dto.AddressBookEntryDTO;
 import com.addressbookapplication.model.AddressBookEntry;
-import com.addressbookapplication.repository.AddressBookRepository;
+import com.addressbookapplication.service.AddressBookService;
+import com.addressbookapplication.util.AddressBookEntryConverter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/addressbook")
+@RequestMapping("/api/address-book")
 public class AddressBookController {
 
-    private final AddressBookRepository repository;
+    private final AddressBookService addressBookService;
 
-    public AddressBookController(AddressBookRepository repository) {
-        this.repository = repository;
+    public AddressBookController(AddressBookService addressBookService) {
+        this.addressBookService = addressBookService;
     }
 
-    // Create a new entry (POST)
-    @PostMapping("/add")
-    public ResponseEntity<AddressBookEntry> addEntry(@RequestBody AddressBookEntry entry) {
-        AddressBookEntry savedEntry = repository.save(entry);
-        return ResponseEntity.ok(savedEntry);
-    }
-
-    // Get all entries (GET)
-    @GetMapping("/entries")
-    public ResponseEntity<List<AddressBookEntry>> getAllEntries() {
-        List<AddressBookEntry> entries = repository.findAll();
+    @GetMapping
+    public ResponseEntity<List<AddressBookEntryDTO>> getAllEntries() {
+        List<AddressBookEntryDTO> entries = addressBookService.getAllEntries()
+                .stream()
+                .map(AddressBookEntryConverter::toDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(entries);
     }
 
-    // Get an entry by ID (GET)
-    @GetMapping("/entries/{id}")
-    public ResponseEntity<AddressBookEntry> getEntryById(@PathVariable Long id) {
-        Optional<AddressBookEntry> entry = repository.findById(id);
-        return entry.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/{id}")
+    public ResponseEntity<AddressBookEntryDTO> getEntryById(@PathVariable Long id) {
+        AddressBookEntry entry = addressBookService.getEntryById(id);
+        return ResponseEntity.ok(AddressBookEntryConverter.toDTO(entry));
     }
 
-    // Update an entry by ID (PUT)
-    @PutMapping("/entries/{id}")
-    public ResponseEntity<AddressBookEntry> updateEntry(@PathVariable Long id, @RequestBody AddressBookEntry updatedEntry) {
-        return repository.findById(id)
-                .map(existingEntry -> {
-                    existingEntry.setName(updatedEntry.getName());
-                    existingEntry.setPhone(updatedEntry.getPhone());
-                    existingEntry.setEmail(updatedEntry.getEmail());
-                    repository.save(existingEntry);
-                    return ResponseEntity.ok(existingEntry);
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @PostMapping
+    public ResponseEntity<AddressBookEntryDTO> createEntry(@RequestBody AddressBookEntryDTO entryDTO) {
+        AddressBookEntry savedEntry = addressBookService.saveEntry(AddressBookEntryConverter.toEntity(entryDTO));
+        return ResponseEntity.ok(AddressBookEntryConverter.toDTO(savedEntry));
     }
 
-    // Delete an entry by ID (DELETE)
-    @DeleteMapping("/entries/{id}")
+    @PutMapping("/{id}")
+    public ResponseEntity<AddressBookEntryDTO> updateEntry(@PathVariable Long id, @RequestBody AddressBookEntryDTO entryDTO) {
+        AddressBookEntry updatedEntry = addressBookService.updateEntry(id, AddressBookEntryConverter.toEntity(entryDTO));
+        return ResponseEntity.ok(AddressBookEntryConverter.toDTO(updatedEntry));
+    }
+
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteEntry(@PathVariable Long id) {
-        if (repository.existsById(id)) {
-            repository.deleteById(id);
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        addressBookService.deleteEntry(id);
+        return ResponseEntity.noContent().build();
     }
 }
+
 
 
